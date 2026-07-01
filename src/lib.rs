@@ -1,6 +1,7 @@
 use std::net::Ipv6Addr;
 
 /// Defangs a string by making URLs, IPs, domains, and emails inert.
+/// Idempotent: applying `defang` to an already-defanged string is a no-op.
 ///
 /// Transformations applied:
 /// - URL schemes: `https://` → `hxxps[://]`, `http://` → `hxxp[://]`, etc.
@@ -18,7 +19,7 @@ pub fn defang(input: &str) -> String {
         defang_ipv6(s)
     } else {
         // Covers IPv4, plain domains, and anything dot-separated.
-        s.replace('.', "[.]")
+        idempotent_replace(s, '.', "[.]")
     }
 }
 
@@ -45,19 +46,43 @@ pub fn refang(input: &str) -> String {
 }
 
 fn defang_url(s: &str) -> String {
-    s.replace("https://", "hxxps[://]")
+    let s = s
+        .replace("https://", "hxxps[://]")
         .replace("http://", "hxxp[://]")
         .replace("ftps://", "fxxps[://]")
-        .replace("ftp://", "fxxp[://]")
-        .replace('.', "[.]")
+        .replace("ftp://", "fxxp[://]");
+    idempotent_replace(&s, '.', "[.]")
 }
 
 fn defang_email(s: &str) -> String {
-    s.replace('@', "[@]").replace('.', "[.]")
+    let s = idempotent_replace(s, '@', "[@]");
+    idempotent_replace(&s, '.', "[.]")
 }
 
 fn defang_ipv6(s: &str) -> String {
-    s.replace(':', "[:]")
+    idempotent_replace(s, ':', "[:]")
+}
+
+/// Replaces every occurrence of `ch` with `bracketed`, skipping positions
+/// where `bracketed` is already present — making the operation idempotent.
+fn idempotent_replace(s: &str, ch: char, bracketed: &str) -> String {
+    let mut out = String::with_capacity(s.len() + s.len() / 4);
+    let mut rest = s;
+    while !rest.is_empty() {
+        if rest.starts_with(bracketed) {
+            // Already defanged — pass through unchanged.
+            out.push_str(bracketed);
+            rest = &rest[bracketed.len()..];
+        } else if rest.starts_with(ch) {
+            out.push_str(bracketed);
+            rest = &rest[ch.len_utf8()..];
+        } else {
+            let c = rest.chars().next().unwrap();
+            out.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    out
 }
 
 #[cfg(test)]
@@ -136,6 +161,57 @@ mod tests {
     #[test]
     fn defang_trims_whitespace() {
         assert_eq!(defang("  example.com  "), "example[.]com");
+    }
+
+    // --- idempotency (defang of already-defanged input is a no-op) ---
+
+    #[test]
+    fn defang_idempotent_https_url() {
+        let d = "hxxps[://]www[.]example[.]com/path?q=1";
+        assert_eq!(defang(d), d);
+    }
+
+    #[test]
+    fn defang_idempotent_domain() {
+        let d = "example[.]com";
+        assert_eq!(defang(d), d);
+    }
+
+    #[test]
+    fn defang_idempotent_ipv4() {
+        let d = "192[.]168[.]1[.]1";
+        assert_eq!(defang(d), d);
+    }
+
+    #[test]
+    fn defang_idempotent_ipv6() {
+        // Already-defanged IPv6 can't parse as Ipv6Addr; falls through to
+        // the dot-replacement path which is a no-op (no bare dots present).
+        let d = "2001[:]db8[:][:]1";
+        assert_eq!(defang(d), d);
+    }
+
+    #[test]
+    fn defang_idempotent_email() {
+        // Already-defanged email has no bare '@'; falls through to the
+        // dot-replacement path which is a no-op.
+        let d = "user[@]example[.]com";
+        assert_eq!(defang(d), d);
+    }
+
+    #[test]
+    fn defang_partial_url_bare_dot_in_path() {
+        // Scheme already defanged, but path still has a bare dot.
+        assert_eq!(
+            defang("hxxps[://]malware[.]example[.]com/drop.exe"),
+            "hxxps[://]malware[.]example[.]com/drop[.]exe"
+        );
+    }
+
+    #[test]
+    fn defang_partial_ipv4_mixed_dots() {
+        // Some octets already defanged, one bare dot remains.
+        assert_eq!(defang("192[.]168.1[.]1"), "192[.]168[.]1[.]1");
     }
 
     // --- refang ---
