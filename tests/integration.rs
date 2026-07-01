@@ -32,6 +32,25 @@ fn refang_common_defanged_forms() {
 }
 
 #[test]
+fn defang_is_idempotent() {
+    let cases = [
+        "hxxps[://]malware[.]example[.]com",
+        "hxxp[://]evil[.]io/payload[.]exe",
+        "attacker[@]phish[.]net",
+        "10[.]20[.]30[.]40",
+        "2001[:]db8[:][:]1",
+        // Partially defanged: bare dot in path, already-bracketed dots in host.
+        "hxxps[://]malware[.]example[.]com/drop.exe",
+    ];
+
+    for &input in &cases {
+        let once = defang(input);
+        let twice = defang(&once);
+        assert_eq!(once, twice, "defang not idempotent for: {input}");
+    }
+}
+
+#[test]
 fn roundtrips_are_identity() {
     let cases = [
         "https://www.example.com/path?q=foo&bar=1",
