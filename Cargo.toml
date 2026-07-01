@@ -1,6 +1,6 @@
 [package]
 name = "defang"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 description = "Defang and refang URLs, domains, IP addresses, and email addresses"
 license = "MIT"

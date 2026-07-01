@@ -51,6 +51,41 @@ fn defang_is_idempotent() {
 }
 
 #[test]
+fn refang_is_idempotent() {
+    // Already-refanged strings must pass through unchanged.
+    let clean = [
+        "https://www.example.com/path?q=foo&bar=1",
+        "http://sub.domain.co.uk",
+        "ftp://files.host.net/archive.tar.gz",
+        "user@example.com",
+        "192.168.100.200",
+        "2001:db8::",
+        "example.com",
+    ];
+    for &input in &clean {
+        assert_eq!(
+            refang(input),
+            input,
+            "refang mutated a clean string: {input}"
+        );
+    }
+
+    // Applying refang twice to a defanged string must equal applying it once.
+    let defanged = [
+        "hxxps[://]malware[.]example[.]com",
+        "hxxp[://]evil[.]io/payload[.]exe",
+        "attacker[@]phish[.]net",
+        "10[.]20[.]30[.]40",
+        "2001[:]db8[:][:]1",
+    ];
+    for &input in &defanged {
+        let once = refang(input);
+        let twice = refang(&once);
+        assert_eq!(once, twice, "refang not idempotent for: {input}");
+    }
+}
+
+#[test]
 fn roundtrips_are_identity() {
     let cases = [
         "https://www.example.com/path?q=foo&bar=1",
