@@ -272,6 +272,57 @@ mod tests {
         assert_eq!(refang(""), "");
     }
 
+    // --- refang idempotency (refang of an already-refanged string is a no-op) ---
+
+    #[test]
+    fn refang_idempotent_https_url() {
+        let r = "https://www.example.com/path?q=1";
+        assert_eq!(refang(r), r);
+    }
+
+    #[test]
+    fn refang_idempotent_domain() {
+        let r = "example.com";
+        assert_eq!(refang(r), r);
+    }
+
+    #[test]
+    fn refang_idempotent_ipv4() {
+        let r = "192.168.1.1";
+        assert_eq!(refang(r), r);
+    }
+
+    #[test]
+    fn refang_idempotent_ipv6() {
+        let r = "2001:db8::1";
+        assert_eq!(refang(r), r);
+    }
+
+    #[test]
+    fn refang_idempotent_email() {
+        let r = "user@example.com";
+        assert_eq!(refang(r), r);
+    }
+
+    #[test]
+    fn refang_double_application() {
+        // Applying refang twice to a defanged string must equal applying it once.
+        let cases = [
+            "hxxps[://]www[.]example[.]com/path?q=1",
+            "hxxp[://]example[.]com",
+            "fxxp[://]files[.]example[.]com/pub",
+            "user[@]example[.]com",
+            "192[.]168[.]1[.]1",
+            "2001[:]db8[:][:]1",
+            "example[.]com",
+        ];
+        for &input in &cases {
+            let once = refang(input);
+            let twice = refang(&once);
+            assert_eq!(once, twice, "refang not idempotent for: {input}");
+        }
+    }
+
     // --- round-trip ---
 
     #[test]
