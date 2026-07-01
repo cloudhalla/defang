@@ -4,8 +4,14 @@ use defang::{defang, refang};
 
 #[test]
 fn defang_common_ioc_types() {
-    assert_eq!(defang("https://malware.example.com"), "hxxps[://]malware[.]example[.]com");
-    assert_eq!(defang("http://evil.io/payload.exe"), "hxxp[://]evil[.]io/payload[.]exe");
+    assert_eq!(
+        defang("https://malware.example.com"),
+        "hxxps[://]malware[.]example[.]com"
+    );
+    assert_eq!(
+        defang("http://evil.io/payload.exe"),
+        "hxxp[://]evil[.]io/payload[.]exe"
+    );
     assert_eq!(defang("ftp://drop.zone/file"), "fxxp[://]drop[.]zone/file");
     assert_eq!(defang("attacker@phish.net"), "attacker[@]phish[.]net");
     assert_eq!(defang("10.20.30.40"), "10[.]20[.]30[.]40");
@@ -16,7 +22,9 @@ fn defang_common_ioc_types() {
 #[test]
 fn refang_common_defanged_forms() {
     assert_eq!(refang("hxxps[://]example[.]com"), "https://example.com");
+    assert_eq!(refang("https[://]example[.]com"), "https://example.com");
     assert_eq!(refang("hxxp[://]example[.]com"), "http://example.com");
+    assert_eq!(refang("http[://]example[.]com"), "http://example.com");
     assert_eq!(refang("hxxp://example[.]com"), "http://example.com");
     assert_eq!(refang("user[@]host[.]org"), "user@host.org");
     assert_eq!(refang("192[.]0[.]2[.]1"), "192.0.2.1");

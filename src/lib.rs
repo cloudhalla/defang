@@ -28,6 +28,8 @@ pub fn refang(input: &str) -> String {
         // Scheme variants with bracketed separator
         .replace("hxxps[://]", "https://")
         .replace("hxxp[://]", "http://")
+        .replace("https[://]", "https://")
+        .replace("http[://]", "http://")
         .replace("fxxps[://]", "ftps://")
         .replace("fxxp[://]", "ftp://")
         // Scheme variants without bracketed separator (alternative form)
@@ -74,10 +76,7 @@ mod tests {
 
     #[test]
     fn defang_http_url() {
-        assert_eq!(
-            defang("http://example.com"),
-            "hxxp[://]example[.]com"
-        );
+        assert_eq!(defang("http://example.com"), "hxxp[://]example[.]com");
     }
 
     #[test]
@@ -118,10 +117,7 @@ mod tests {
 
     #[test]
     fn defang_email() {
-        assert_eq!(
-            defang("user@example.com"),
-            "user[@]example[.]com"
-        );
+        assert_eq!(defang("user@example.com"), "user[@]example[.]com");
     }
 
     #[test]
@@ -150,11 +146,16 @@ mod tests {
             refang("hxxps[://]www[.]example[.]com/path?q=1"),
             "https://www.example.com/path?q=1"
         );
+        assert_eq!(
+            refang("https[://]www[.]example[.]com/path?q=1"),
+            "https://www.example.com/path?q=1"
+        );
     }
 
     #[test]
     fn refang_http_url() {
         assert_eq!(refang("hxxp[://]example[.]com"), "http://example.com");
+        assert_eq!(refang("http[://]example[.]com"), "http://example.com");
     }
 
     #[test]
